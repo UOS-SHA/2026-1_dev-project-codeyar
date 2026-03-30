@@ -41,7 +41,7 @@ KeyboardHookProc(
 {
 	LPKBDLLHOOKSTRUCT p = (LPKBDLLHOOKSTRUCT)lParam;
 
-	if (nCode == HC_ACTION && wParam == WM_KEYDOWN)
+	if (nCode == HC_ACTION && (wParam == WM_KEYDOWN || wParam == WM_SYSKEYDOWN))
 		CheckPolicy(p);
 
 	return CallNextHookEx(hook, nCode, wParam, lParam);
