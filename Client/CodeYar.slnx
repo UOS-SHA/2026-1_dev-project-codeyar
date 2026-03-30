@@ -1,3 +1,9 @@
 <Solution>
-  <Project Path="CodeYar/CodeYar.csproj" />
+  <Configurations>
+    <Platform Name="Any CPU" />
+    <Platform Name="x64" />
+    <Platform Name="x86" />
+  </Configurations>
+  <Project Path="YarClient/YarClient.csproj" Id="a401c99d-f32f-4125-8ee9-e80e1156c4ea" />
+  <Project Path="YarDog/YarDog.vcxproj" Id="0c1081b7-6667-4274-8435-40754ee9889e" />
 </Solution>

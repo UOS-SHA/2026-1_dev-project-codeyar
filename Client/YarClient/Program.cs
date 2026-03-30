@@ -1,4 +1,4 @@
-namespace CodeYar
+namespace YarClient
 {
     internal static class Program
     {
