@@ -5,4 +5,5 @@
 typedef struct
 {
 	WCHAR	szPolicyFileName[MAX_PATH];
+	UINT	uiLogLevel;
 }	ARGS, *LPARGS;

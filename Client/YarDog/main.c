@@ -3,11 +3,13 @@
 
 #include "arg.h"
 #include "hook.h"
+#include "log.h"
 #include "parse.h"
 #include "policy.h"
 
 void init(LPARGS pa)
 {
+	InitLog(pa);
 	InitHook(pa);
 	InitPolicy(pa);
 }
