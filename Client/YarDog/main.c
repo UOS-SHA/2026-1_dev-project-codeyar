@@ -1,5 +1,6 @@
 #include <Windows.h>
 #include <stdio.h>
+#include <locale.h>
 
 #include "arg.h"
 #include "hook.h"
@@ -9,12 +10,14 @@
 
 void init(LPARGS pa)
 {
+	setlocale(LC_ALL, "ko-kr");
+
 	InitLog(pa);
 	InitPolicy(pa);
 	InitHook(pa);
 }
 
-int main(int argc, char* argv[])
+int wmain(int argc, wchar_t* argv[])
 {
 	LPARGS	pa;
 	MSG		msg;

@@ -12,7 +12,7 @@ AlertLog(
 	LPCWSTR	szString
 )
 {
-	wprintf(LOG_ALERT_PREFIX L"%s\n", szString);
+	wprintf(LOG_ALRT_PREFIX L"%s\n", szString);
 }
 
 VOID
@@ -31,11 +31,30 @@ InfoLog(
 	wprintf(LOG_INFO_PREFIX L"%s\n", szString);
 }
 
-VOID	(*Loggers[])(LPCWSTR) = {
-	[LOG_ALERT] = AlertLog,
+VOID	(*loggers[])(LPCWSTR) = {
+	[LOG_ALRT] = AlertLog,
 	[LOG_WARN] = WarnLog,
 	[LOG_INFO] = InfoLog
 };
+
+VOID
+StartupLog(
+	LPARGS	pa
+)
+{
+	wprintf(L"============= YarDog =============\n");
+
+	wprintf(L"Log level: %d.\n", pa->uiLogLevel);
+
+	if (pa->szPolicyFileName[0])
+		wprintf(L"Policy file path: %s.\n", pa->szPolicyFileName);
+	else
+		wprintf(L"Using default policy.\n");
+
+	wprintf(L"Student name: %s (ID: %s).\n", pa->szStudentName, pa->szStudentID);
+
+	wprintf(L"============= YarDog =============\n\n\n");
+}
 
 VOID
 InitLog(
@@ -43,17 +62,27 @@ InitLog(
 )
 {
 	uiLogLevel = pa->uiLogLevel;
+	StartupLog(pa);
+}
+
+VOID
+Die(
+	LPCWSTR	szString
+)
+{
+	AlertLog(szString);
+	ExitProcess(0);
 }
 
 VOID
 Log(
-	UINT	errorlevel,
+	UINT	level,
 	LPCWSTR	szString
 )
 {
-	if (errorlevel > uiLogLevel)
+	if (level >= uiLogLevel)
 		return;
-	if (errorlevel > LOG_INFO || errorlevel < LOG_ALERT)
+	if (level > LOG_INFO || level < LOG_ALRT)
 		return;
-	Loggers[errorlevel](szString);
+	loggers[level](szString);
 }

@@ -150,7 +150,7 @@ ReadOneLine(
 			continue;
 		}
 
-		Log(LOG_ALERT, L"A line of policy is invalid!");
+		Log(LOG_ALRT, L"A line of policy is invalid!");
 		return;
 	} while (token = wcstok_s(NULL, L",", &context));
 
@@ -263,5 +263,5 @@ CheckPolicy(
 
 	// NOT ALLOWED!!
 	// DO SOMETHING!!
-	wprintf(L"%s!!\n", szLog);
+	
 }
