@@ -9,6 +9,7 @@
 * Siho's Awesome Policy File Format
 * 
 * +: allow
+* !: special action
 * -: ban
 * ,: combination
 * *: any
@@ -16,12 +17,10 @@
 * 
 * ex)
 * +CTRL,C,$asdf
-* +CTRL,V,$asdf
+* !CTRL,V,$846cf704-6728-4b16-99a1-6e514c362845
 * -CTRL,*,$asdf
 * -ALT,TAB,$asdf
 * -WIN,*,$asdf
-* 
-* CTRL + C and CTRL + V is an exception; they are recorded anyways.
 */
 
 typedef struct
@@ -31,6 +30,7 @@ typedef struct
 }	KEYMAP, * LPKEYMAP;
 
 WCHAR	szPolicyFileBuffer[POLICY_FILE_MAX_LEN];
+WCHAR	szPolicyOriginalBuffer[POLICY_FILE_MAX_LEN];
 LPTREE	root;
 
 KEYMAP		keymap[] = {
@@ -38,9 +38,10 @@ KEYMAP		keymap[] = {
 	{ L"ALT", VK_MENU },
 	{ L"SHIFT", VK_SHIFT },
 	{ L"TAB", VK_TAB },
-	{ L"DEL", VK_DECIMAL },
+	{ L"DEL", VK_DELETE },
 	{ L"ENTER", VK_RETURN },
 	{ L"WIN", VK_LWIN },
+	{ L"ESC", VK_ESCAPE },
 };
 
 VOID
@@ -57,6 +58,7 @@ ReadPolicy(
 )
 {
 	HANDLE	file;
+	WCHAR	buffer[MAX_PATH];
 
 	file = CreateFileW(
 		szFileName,
@@ -69,10 +71,28 @@ ReadPolicy(
 
 	if (file == INVALID_HANDLE_VALUE)
 	{
-		ReadDefaultPolicy();
-		return;
+		GetCurrentDirectoryW(MAX_PATH, buffer);
+		wcscat_s(buffer, MAX_PATH, L"\\");
+		wcscat_s(buffer, MAX_PATH, szFileName);
+		file = CreateFileW(
+			buffer,
+			GENERIC_READ,
+			FILE_SHARE_DELETE,
+			NULL, OPEN_EXISTING,
+			FILE_ATTRIBUTE_NORMAL,
+			NULL
+		);
+
+		if (file == INVALID_HANDLE_VALUE)
+		{
+			Log(LOG_INFO, L"Using default policy.");
+			ReadDefaultPolicy();
+			return;
+		}
 	}
 
+	Log(LOG_INFO, L"File is loaded.");
+	ReadFile(file, szPolicyFileBuffer, 2, NULL, NULL);
 	ReadFile(file, szPolicyFileBuffer, POLICY_FILE_MAX_LEN, NULL, NULL);
 	CloseHandle(file);
 }
@@ -108,6 +128,7 @@ ReadOneLine(
 	case '+':
 		bIsAllowed = TRUE;
 		break;
+	case '!':
 	case '-':
 		bIsAllowed = FALSE;
 		break;
@@ -120,6 +141,11 @@ ReadOneLine(
 	token = wcstok_s(szLine + 1, L",", &context);
 	do
 	{
+		if (token[0] == ' ')
+			token++;
+		if (token[0] == 0)
+			continue;
+
 		if (token[0] == L'$')
 		{
 			wcscpy_s(log, LOG_TEXT_MAX_LEN, token + 1);
@@ -166,11 +192,11 @@ InitPolicyTree(
 	wchar_t* context;
 
 	token = context = NULL;
-	token = wcstok_s(szPolicyFileBuffer, L"\n", &context);
+	token = wcstok_s(szPolicyFileBuffer, L"\r\n", &context);
 	do
 	{
 		ReadOneLine(token);
-	} while (token = wcstok_s(NULL, L"\n", &context));
+	} while (token = wcstok_s(NULL, L"\r\n", &context));
 }
 
 VOID
@@ -180,12 +206,16 @@ InitPolicy(
 {
 	root = CreateRootNode();
 	ReadPolicy(pa->szPolicyFileName);
+	memcpy_s(
+		szPolicyOriginalBuffer, POLICY_FILE_MAX_LEN,
+		szPolicyFileBuffer, POLICY_FILE_MAX_LEN
+	);
 	InitPolicyTree();
 }
 
 INT	vkeys[] = {
 	VK_CONTROL, VK_SHIFT, VK_MENU, VK_LWIN,
-	VK_TAB, VK_RETURN, VK_DECIMAL
+	VK_TAB, VK_RETURN, VK_DELETE, VK_ESCAPE
 };
 
 inline
@@ -238,12 +268,60 @@ MakeSentence(
 		dict[toadd] = TRUE;
 		sentence[sentptr++] = toadd;
 	}
-	sentence[sentptr++] = vkcode;
+	if (!dict[vkcode])
+		sentence[sentptr++] = vkcode;
 	
 	return sentptr;
 }
 
-#include <stdio.h>
+typedef struct
+{
+	LPCWSTR		szGUID;
+	DWORD		(*pHandler)(LPVOID);
+}	GUIDPAIR;
+
+GUIDPAIR	GUIDs[] = {
+	[0] = { NULL, NULL },
+	{ CLIPBOARD_INSPECTION_GUID, ClipboardHandler },
+};
+
+INT
+CheckGUID(
+	LPWSTR	szLog
+)
+{
+	INT		i;
+
+	if (wcslen(szLog) != wcslen(GUIDs[1].szGUID))
+		return 0;
+
+	for (i = sizeof(GUIDs) / sizeof(GUIDPAIR) - 1; i > 0; i--)
+		if (!wcscmp(szLog, GUIDs[i].szGUID))
+			break;
+	return i;
+}
+
+VOID
+RunGUID(
+	LPWSTR	szLog
+)
+{
+	INT		ret;
+	HANDLE	hThread;
+
+	ret = CheckGUID(szLog);
+	if (!ret)
+		return;
+
+	hThread = CreateThread(
+		NULL, 0, GUIDs[ret].pHandler,
+		NULL, 0, NULL
+	);
+	if (hThread)
+		CloseHandle(hThread);
+}
+
+#include <stdio.h>		// DEBUG!!
 
 VOID
 CheckPolicy(
@@ -263,5 +341,14 @@ CheckPolicy(
 
 	// NOT ALLOWED!!
 	// DO SOMETHING!!
-	
+	wprintf(L"%s\n", szLog);
+	RunGUID(szLog);
+}
+
+LPWSTR
+GetPolicyBufferAddress(
+	VOID
+)
+{
+	return szPolicyOriginalBuffer;
 }

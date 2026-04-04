@@ -57,10 +57,12 @@ InsertShortcutRecursive(
 
 	child = root->children[sentence[0]];
 	if (!child)
+	{
 		child = CreateNode(FALSE, sentence[0]);
-	if (!child)
-		return;
-	root->children[sentence[0]] = child;
+		if (!child)
+			return;
+		root->children[sentence[0]] = child;
+	}
 
 	InsertShortcutRecursive(
 		child, sentence + 1,
@@ -87,8 +89,6 @@ InsertShortcut(
 		szLog
 	);
 }
-
-#include <stdio.h>
 
 BOOL
 FindShortcut(

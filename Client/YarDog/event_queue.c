@@ -54,7 +54,5 @@ InitEventQueue(
 )
 {
 	MutexPhase();
-	EventPhase();
 	ThreadPhase(pa);
-
 }

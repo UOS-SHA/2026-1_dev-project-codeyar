@@ -4,6 +4,7 @@
 
 #include "arg.h"
 #include "log.h"
+#include "policy.h"
 
 UINT	uiLogLevel;
 
@@ -42,7 +43,13 @@ StartupLog(
 	LPARGS	pa
 )
 {
+	WCHAR	szWorkingDir[MAX_PATH];
+
+	GetCurrentDirectoryW(MAX_PATH, szWorkingDir);
+
 	wprintf(L"============= YarDog =============\n");
+
+	wprintf(L"PWD: %s.\n", szWorkingDir);
 
 	wprintf(L"Log level: %d.\n", pa->uiLogLevel);
 
@@ -51,9 +58,14 @@ StartupLog(
 	else
 		wprintf(L"Using default policy.\n");
 
+	if (pa->uiLogLevel == LOG_LEVEL_VERBOSE)
+		wprintf(L"%s\n", GetPolicyBufferAddress());
+
+	wprintf(L"Worker count: %d.\n", pa->uiWorkerCount);
+
 	wprintf(L"Student name: %s (ID: %s).\n", pa->szStudentName, pa->szStudentID);
 
-	wprintf(L"============= YarDog =============\n\n\n");
+	wprintf(L"============= YarDog =============\n\n");
 }
 
 VOID
@@ -62,7 +74,6 @@ InitLog(
 )
 {
 	uiLogLevel = pa->uiLogLevel;
-	StartupLog(pa);
 }
 
 VOID

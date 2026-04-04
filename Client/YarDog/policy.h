@@ -12,6 +12,8 @@
 								L"-ALT,*,$ALT\n"		\
 								L"-WIN,*,$WIN\n"
 
+#define CLIPBOARD_INSPECTION_GUID	L"846cf704-6728-4b16-99a1-6e514c362845"
+
 VOID
 InitPolicy(
 	LPARGS	pa
@@ -20,4 +22,15 @@ InitPolicy(
 VOID
 CheckPolicy(
 	LPKBDLLHOOKSTRUCT	pkhs
+);
+
+LPWSTR
+GetPolicyBufferAddress(
+	VOID
+);
+
+DWORD
+WINAPI
+ClipboardHandler(
+	LPVOID	unused
 );

@@ -14,7 +14,7 @@
 
 #define HANDLED(pair)		((pair).handled |= HAS_BEEN_HANDLED)
 #define CHECK(pair)			(!(((pair).handled & MUST_BE_HANDLED) && !((pair).handled & HAS_BEEN_HANDLED)))
-#define CHECK_DEFAULT(pair)	((pair).handled & NEEDS_DEFAULT)
+#define CHECK_DEFAULT(pair)	(((pair).handled & NEEDS_DEFAULT) && (!HANDLED(pair)))
 
 typedef struct
 {
@@ -158,7 +158,7 @@ int worker_handler(LPARGS pa, wchar_t* vec)
 	if (!vec)
 	{
 		pa->uiWorkerCount = WORKER_COUNT_DEFAULT;
-		return;
+		return true;
 	}
 	
 	pa->uiWorkerCount = _wtoi(vec);
@@ -168,4 +168,6 @@ int worker_handler(LPARGS pa, wchar_t* vec)
 		pa->uiWorkerCount = WORKER_COUNT_MIN;
 	else if (pa->uiWorkerCount > WORKER_COUNT_MAX)
 		pa->uiWorkerCount = WORKER_COUNT_MAX;
+
+	return true;
 }

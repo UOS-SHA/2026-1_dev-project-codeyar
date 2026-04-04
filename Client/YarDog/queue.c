@@ -18,7 +18,7 @@ LPNODE	tail;
 */
 
 LPNODE
-CreateNode(
+CreateQueueNode(
 	ITEM	item
 )
 {
@@ -39,7 +39,7 @@ Enqueue(
 {
 	LPNODE	newnode;
 
-	newnode = CreateNode(item);
+	newnode = CreateQueueNode(item);
 	if (!newnode)
 		return;
 

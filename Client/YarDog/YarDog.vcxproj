@@ -131,12 +131,14 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="clipboard.c" />
     <ClCompile Include="event_queue.c" />
     <ClCompile Include="hook.c" />
     <ClCompile Include="log.c" />
     <ClCompile Include="main.c" />
     <ClCompile Include="parse.c" />
     <ClCompile Include="policy.c" />
+    <ClCompile Include="queue.c" />
     <ClCompile Include="tree.c" />
   </ItemGroup>
   <ItemGroup>

@@ -7,6 +7,6 @@
 
 LPARGS
 parse(
-	int		argc,
-	char*	argv[]
+	int			argc,
+	wchar_t*	argv[]
 );

@@ -30,3 +30,8 @@ Log(
 	UINT	errorlevel,
 	LPCWSTR	szString
 );
+
+VOID
+StartupLog(
+	LPARGS	pa
+);

@@ -15,6 +15,8 @@ void init(LPARGS pa)
 	InitLog(pa);
 	InitPolicy(pa);
 	InitHook(pa);
+
+	StartupLog(pa);
 }
 
 int wmain(int argc, wchar_t* argv[])
