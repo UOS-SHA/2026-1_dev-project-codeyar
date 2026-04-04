@@ -12,13 +12,14 @@
 * -: ban
 * ,: combination
 * *: any
+* $: log message (at the end)
 * 
 * ex)
-* +CTRL,C
-* +CTRL,V
-* -CTRL,*
-* -ALT,TAB
-* -WIN,*
+* +CTRL,C,$asdf
+* +CTRL,V,$asdf
+* -CTRL,*,$asdf
+* -ALT,TAB,$asdf
+* -WIN,*,$asdf
 * 
 * CTRL + C and CTRL + V is an exception; they are recorded anyways.
 */
@@ -183,8 +184,8 @@ InitPolicy(
 }
 
 INT	vkeys[] = {
-	VK_TAB, VK_RETURN, VK_SHIFT,
-	VK_CONTROL, VK_MENU, VK_DECIMAL
+	VK_CONTROL, VK_SHIFT, VK_MENU, VK_LWIN,
+	VK_TAB, VK_RETURN, VK_DECIMAL
 };
 
 inline
@@ -218,26 +219,31 @@ MakeSentence(
 {
 	INT		i;
 	INT		sentptr;
+	INT		toadd;
 	BOOL	vkInserted;
+	BOOL	dict[256] = { 0, };
 
 	vkcode = ConvertLR(vkcode);
 
 	for (i = 0, sentptr = 0, vkInserted = FALSE; i < sizeof(vkeys) / sizeof(INT); i++)
 	{
-		if (vkcode < vkeys[i])
-		{
-			sentence[sentptr++] = vkcode;
-			vkInserted = TRUE;
-		}
 		if (GetAsyncKeyState(vkeys[i]) & 0x8000)
-			sentence[sentptr++] = vkeys[i];
-	}
+			toadd = vkeys[i];
+		else
+			continue;
 
-	if (!vkInserted)
-		sentence[sentptr++] = vkcode;
+		if (dict[toadd])
+			continue;
+
+		dict[toadd] = TRUE;
+		sentence[sentptr++] = toadd;
+	}
+	sentence[sentptr++] = vkcode;
 	
 	return sentptr;
 }
+
+#include <stdio.h>
 
 VOID
 CheckPolicy(
@@ -247,13 +253,15 @@ CheckPolicy(
 	INT		sentence[SHORTCUT_MAX_LEN] = { 0, };
 	INT		len;
 	BOOL	bIsAllowed;
+	LPWSTR	szLog;
 
 	len = MakeSentence(sentence, p->vkCode);
 	
-	if (!FindShortcut(root, sentence, len, &bIsAllowed)
+	if (!FindShortcut(root, sentence, len, &bIsAllowed, &szLog)
 		|| bIsAllowed)
 		return;
 
 	// NOT ALLOWED!!
 	// DO SOMETHING!!
+	wprintf(L"%s!!\n", szLog);
 }

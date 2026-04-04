@@ -7,6 +7,8 @@
 #define DEFAULT_POLICY			L"+CTRL,C,$Copy\n"		\
 								L"+CTRL,V,$Paste\n"		\
 								L"-CTRL,*,$Control\n"	\
+								L"-ALT,TAB,$ALT+TAB\n"	\
+								L"-WIN,TAB,$WIN+TAB\n"	\
 								L"-ALT,*,$ALT\n"		\
 								L"-WIN,*,$WIN\n"
 

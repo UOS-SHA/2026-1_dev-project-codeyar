@@ -10,8 +10,8 @@
 void init(LPARGS pa)
 {
 	InitLog(pa);
-	InitHook(pa);
 	InitPolicy(pa);
+	InitHook(pa);
 }
 
 int main(int argc, char* argv[])

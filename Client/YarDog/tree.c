@@ -55,7 +55,9 @@ InsertShortcutRecursive(
 		return;
 	}
 
-	child = CreateNode(FALSE, sentence[0]);
+	child = root->children[sentence[0]];
+	if (!child)
+		child = CreateNode(FALSE, sentence[0]);
 	if (!child)
 		return;
 	root->children[sentence[0]] = child;
@@ -65,31 +67,6 @@ InsertShortcutRecursive(
 		len - 1, bIsAllowed,
 		szLog
 	);
-}
-
-VOID
-SortShortcut(
-	LPINT	sentence,
-	INT		len
-)
-{
-	INT		i;
-	INT		j;
-	INT		min;
-	INT		temp;
-
-	for (i = 0, j = 0; i < len; i++)
-	{
-		min = i;
-
-		for (j = i; j < len; j++)
-			if (sentence[j] < sentence[min])
-				min = j;
-
-		temp = sentence[i];
-		sentence[i] = sentence[min];
-		sentence[min] = temp;
-	}
 }
 
 VOID
@@ -104,7 +81,6 @@ InsertShortcut(
 	if (!root || len > SHORTCUT_MAX_LEN)
 		return;
 
-	SortShortcut(sentence, len);
 	InsertShortcutRecursive(
 		root, sentence,
 		len, bIsAllowed,
@@ -112,14 +88,15 @@ InsertShortcut(
 	);
 }
 
-#include <stdio.h>		// DEBUG!!
+#include <stdio.h>
 
 BOOL
 FindShortcut(
 	LPTREE	root,
 	LPINT	sentence,
 	INT		len,
-	LPBOOL	pIsAllowed
+	LPBOOL	pIsAllowed,
+	LPWSTR*	dpLog
 )
 {
 	LPTREE	child;
@@ -127,17 +104,12 @@ FindShortcut(
 	if (!root || len > SHORTCUT_MAX_LEN)
 		return FALSE;
 
-	for (int i = 0; i < len; i++)
-		printf("%0#x, ", sentence[i]);
-	printf("\n");
-
 	if (len == 0)
 	{
 		if (root->vkey != DEF_VK_END)
 			return FALSE;
 		*pIsAllowed = root->bIsAllowed;
-
-		wprintf(L"%s!!\n", root->szLog);
+		*dpLog = root->szLog;
 
 		return TRUE;
 	}
@@ -148,6 +120,7 @@ FindShortcut(
 
 	return FindShortcut(
 		child, sentence + 1,
-		len - 1, pIsAllowed
+		len - 1, pIsAllowed,
+		dpLog
 	);
 }

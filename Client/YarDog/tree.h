@@ -6,7 +6,7 @@
 #define DEF_VK_STAR		0xFF
 #define VK_LEN			256
 
-#define SHORTCUT_MAX_LEN	32
+#define SHORTCUT_MAX_LEN	4
 #define LOG_TEXT_MAX_LEN	64
 
 typedef struct __node
@@ -36,5 +36,6 @@ FindShortcut(
 	LPTREE	root,
 	LPINT	sentence,
 	INT		len,
-	LPBOOL	pIsAllowed
+	LPBOOL	pIsAllowed,
+	LPWSTR*	dpLog
 );
