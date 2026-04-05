@@ -1,18 +1,25 @@
 #include <Windows.h>
 #include <stdio.h>
+#include <locale.h>
 
 #include "arg.h"
 #include "hook.h"
+#include "log.h"
 #include "parse.h"
 #include "policy.h"
 
 void init(LPARGS pa)
 {
-	InitHook(pa);
+	setlocale(LC_ALL, "ko-kr");
+
+	InitLog(pa);
 	InitPolicy(pa);
+	InitHook(pa);
+
+	StartupLog(pa);
 }
 
-int main(int argc, char* argv[])
+int wmain(int argc, wchar_t* argv[])
 {
 	LPARGS	pa;
 	MSG		msg;
