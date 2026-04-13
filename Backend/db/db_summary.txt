@@ -1,0 +1,36 @@
+[~04.14 백엔드 DB 작업 정리]
+
+1. 공부한 내용
+- FastAPI 서버 실행
+- 기본 API 테스트 (register/login 연습)
+- Git 사용 (clone, add, commit, push)
+- 충돌 해결 (rebase, conflict 해결)
+- DB 모델 틀 생성:
+  - User
+  - Problem
+  - Submission
+  - EventLog
+
+2. 각 모델 역할
+- User: 사용자 정보 (아이디, 비밀번호 등)
+- Problem: 문제 정보 (제목, 설명, 제한)
+- Submission: 제출 코드 및 결과
+- EventLog: 시험 중 행동 기록 (부정행위 감지)
+
+3. 모델이 DB로 만들어지는 과정
+- models에 클래스 정의
+- Base에 등록
+- Base.metadata.create_all() 실행
+- 실제 DB 테이블 생성
+
+4. 현재 상태
+- DB 구조 공부 진행중
+- Git에 기본 틀 코드 업로드 완료
+- 팀 구조에 맞게 작업 필요
+
+5. 앞으로 해야 할 것
+- SQLAlchemy 더 공부 (Column, 관계 등)
+- models 개선 (자료형, 관계 설정)
+- DB 연결 구조 이해 (session, engine)
+- API에서 모델 사용하는 방식 이해
+- 비밀번호 암호화 (보안)
