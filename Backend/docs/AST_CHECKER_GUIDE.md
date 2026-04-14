@@ -405,13 +405,210 @@ API 레이어에서 HTTP 400으로 변환됩니다.
 
 > "함수 `fibonacci`를 재귀로 구현하세요. 반복문 사용 금지."
 
+**적용 조건 (JSON)**
+
 ```json
 [
   {"action": "require", "target": "function", "name": "fibonacci", "min_params": 1},
   {"action": "require", "target": "recursion", "in_function": "fibonacci"},
-  {"action": "forbid", "target": "loop"}
+  {"action": "forbid",  "target": "loop"}
 ]
 ```
+
+---
+
+#### ✅ 통과 케이스
+
+**통과 1 — 기본 재귀 구현**
+
+```python
+def fibonacci(n):
+    if n <= 1:
+        return n
+    return fibonacci(n - 1) + fibonacci(n - 2)
+
+print(fibonacci(int(input())))
+```
+
+```
+결과  : PASS ✅
+메시지: OK
+```
+
+---
+
+**통과 2 — 메모이제이션 (재귀 + dict 캐싱)**
+
+```python
+memo = {}
+
+def fibonacci(n):
+    if n in memo:
+        return memo[n]
+    if n <= 1:
+        return n
+    memo[n] = fibonacci(n - 1) + fibonacci(n - 2)
+    return memo[n]
+
+print(fibonacci(int(input())))
+```
+
+```
+결과  : PASS ✅
+메시지: OK
+```
+
+> 재귀 호출이 존재하고 반복문이 없으므로 통과합니다.
+> dict 사용 자체는 `loop` 조건과 무관합니다.
+
+---
+
+**통과 3 — 클래스 내부에 정의된 재귀 메서드**
+
+```python
+class Solver:
+    def fibonacci(self, n):
+        if n <= 1:
+            return n
+        return self.fibonacci(n - 1) + self.fibonacci(n - 2)
+
+s = Solver()
+print(s.fibonacci(int(input())))
+```
+
+```
+결과  : PASS ✅
+메시지: OK
+```
+
+> `self.fibonacci(...)` 호출도 **직접 재귀**로 인식합니다.
+> 클래스 내 메서드도 `functions` 목록에 등록되므로 `require function` 조건을 만족합니다.
+
+---
+
+#### ❌ 실패 케이스
+
+**실패 1 — `fibonacci` 함수 자체가 없음**
+
+```python
+def fib(n):
+    if n <= 1:
+        return n
+    return fib(n - 1) + fib(n - 2)
+
+print(fib(int(input())))
+```
+
+```
+결과  : FAIL ❌
+메시지: 함수 'fibonacci'이(가) 정의되지 않았습니다
+실패조건: {'action': 'require', 'target': 'function', 'name': 'fibonacci', 'min_params': 1}
+```
+
+> 함수 이름이 `fib`이므로 `fibonacci` 조건에 걸립니다. 이름을 정확히 맞춰야 합니다.
+
+---
+
+**실패 2 — 재귀 없이 `for`문으로 구현**
+
+```python
+def fibonacci(n):
+    a, b = 0, 1
+    for _ in range(n):
+        a, b = b, a + b
+    return a
+
+print(fibonacci(int(input())))
+```
+
+```
+결과  : FAIL ❌
+메시지: 함수 'fibonacci'에서 재귀 호출이 필요합니다
+실패조건: {'action': 'require', 'target': 'recursion', 'in_function': 'fibonacci'}
+```
+
+> `fibonacci` 함수는 존재하지만 자기 자신을 호출하지 않습니다.
+> (덤으로 `forbid loop`도 위반이지만, 조건은 **첫 번째 실패에서 즉시 중단**됩니다.)
+
+---
+
+**실패 3 — 재귀 없이 `while`문으로 구현**
+
+```python
+def fibonacci(n):
+    a, b = 0, 1
+    while n > 0:
+        a, b = b, a + b
+        n -= 1
+    return a
+
+print(fibonacci(int(input())))
+```
+
+```
+결과  : FAIL ❌
+메시지: 함수 'fibonacci'에서 재귀 호출이 필요합니다
+실패조건: {'action': 'require', 'target': 'recursion', 'in_function': 'fibonacci'}
+```
+
+---
+
+**실패 4 — 재귀는 있지만 반복문도 혼용**
+
+```python
+def fibonacci(n):
+    if n <= 1:
+        return n
+    results = []
+    for i in range(n):          # ← 반복문 사용!
+        results.append(fibonacci(i))
+    return results[-1] + results[-2]
+
+print(fibonacci(int(input())))
+```
+
+```
+결과  : FAIL ❌
+메시지: 반복문 사용이 금지되어 있습니다
+실패조건: {'action': 'forbid', 'target': 'loop', 'kind': 'any'}
+```
+
+> 재귀 호출은 있지만 `for`문도 함께 사용하고 있어 `forbid loop` 조건에 위반됩니다.
+
+---
+
+**실패 5 — 파라미터가 0개 (`min_params: 1` 위반)**
+
+```python
+def fibonacci():
+    pass
+```
+
+```
+결과  : FAIL ❌
+메시지: 함수 'fibonacci'이(가) 정의되지 않았습니다
+실패조건: {'action': 'require', 'target': 'function', 'name': 'fibonacci', 'min_params': 1}
+```
+
+> `fibonacci()`는 정의되어 있지만 파라미터가 0개이므로 `min_params: 1` 조건을 만족하지 못합니다.
+> (내부적으로 "해당 시그니처의 함수가 없는 것"으로 처리됩니다.)
+
+---
+
+**실패 6 — 문법 오류 (Python 파싱 실패)**
+
+```python
+def fibonacci(n)      # ← 콜론 누락
+    return fibonacci(n-1) + fibonacci(n-2)
+```
+
+```
+결과  : FAIL ❌
+메시지: 문법 오류가 있습니다 (line 1, column 17): invalid syntax
+실패조건: {'target': 'syntax'}
+```
+
+> 문법 오류가 있으면 AST 파싱 자체가 실패하므로 조건 검사 없이 즉시 반환됩니다.
 
 ### 예시 B: OOP 과제
 
