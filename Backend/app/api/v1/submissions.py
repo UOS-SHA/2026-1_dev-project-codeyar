@@ -2,6 +2,7 @@ from fastapi import APIRouter, HTTPException, BackgroundTasks
 import uuid
 
 from app.schemas.submission import SubmitRequest, SubmitResponse, SubmissionStatusResponse
+from app.services.ast_checker import ASTConfigurationError, check_phase1_conditions
 from app.services.judge import Judge0Client, Judge0APIError
 
 router = APIRouter()
@@ -18,6 +19,28 @@ async def submit_code(request: SubmitRequest, background_tasks: BackgroundTasks)
     사용자에게는 대기(Block) 없는 0.1초의 초고속 응답속도로 고유 추적 ID가 돌아갑니다.
     """
     try:
+        ast_result = check_phase1_conditions(
+            code=request.code,
+            problem_conditions=request.ast_conditions,
+            global_conditions=request.global_ast_conditions,
+        )
+    except ASTConfigurationError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    if not ast_result.passed:
+        submission_id = str(uuid.uuid4())
+        fake_db[submission_id] = {
+            "status": "AST Fail",
+            "results": [],
+            "message": ast_result.message,
+        }
+        return SubmitResponse(
+            submission_id=submission_id,
+            status="AST Fail",
+            message=ast_result.message,
+        )
+
+    try:
         tokens_str = await judge_client.submit_batch(
             source_code=request.code,
             language_id=request.language_id,
@@ -31,7 +54,8 @@ async def submit_code(request: SubmitRequest, background_tasks: BackgroundTasks)
     submission_id = str(uuid.uuid4())
     fake_db[submission_id] = {
         "status": "Pending",
-        "results": []
+        "results": [],
+        "message": None,
     }
     
     # 백엔드 뒷단을 조용히 돌아가는 Background 폴링 워커 투입!
@@ -51,5 +75,6 @@ async def get_submission(submission_id: str):
     data = fake_db[submission_id]
     return SubmissionStatusResponse(
         status=data["status"], 
-        results=data["results"]
+        results=data["results"],
+        message=data.get("message"),
     )
