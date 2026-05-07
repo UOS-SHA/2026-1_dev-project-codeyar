@@ -1,27 +1,37 @@
 from pydantic import BaseModel, Field
-from typing import Any, Dict, List, Optional
-from app.services.judge import TestCaseInput, SubmissionResult
+from typing import List, Optional
+
 
 class SubmitRequest(BaseModel):
-    code: str = Field(..., description="The user's source code to be executed")
-    language_id: int = Field(71, description="Language of the source code (71=Python 3.8.1)")
-    test_cases: List[TestCaseInput] = Field(..., description="테스트 케이스 모음")
-    time_limit: float = Field(2.0, description="Execution time limit in seconds")
-    ast_conditions: List[Dict[str, Any]] = Field(
-        default_factory=list,
-        description="문제별 실행 전 코드 구조 검사 조건",
-    )
-    global_ast_conditions: List[Dict[str, Any]] = Field(
-        default_factory=list,
-        description="전역 공통 코드 구조 검사 조건",
-    )
+    """코드 제출 요청 — problem_id와 code만 보냄. test_cases는 DB에서 읽음."""
+    problem_id: str = Field(..., description="제출할 문제 ID")
+    code: str = Field(..., description="사용자 소스 코드")
+
 
 class SubmitResponse(BaseModel):
     submission_id: str
     status: str
     message: Optional[str] = None
 
+
+class TestCaseResult(BaseModel):
+    """각 테스트케이스의 채점 결과"""
+    status_id: int
+    status_desc: str        # "Accepted", "Wrong Answer", "Time Limit Exceeded" 등
+    time: float
+    memory: int
+    stdout: str
+    stderr: str
+
+
 class SubmissionStatusResponse(BaseModel):
-    status: str
-    results: List[SubmissionResult]
-    message: Optional[str] = None
+    """채점 결과 조회 응답"""
+    submission_id: str
+    user_id: str
+    exam_id: str
+    problem_id: str
+    status: str                          # "Pending" / "Completed" / "Timeout" / "Error" / "AST Fail"
+    passed: Optional[bool] = None        # True=전체 통과, False=실패, None=채점 중
+    error_reason: Optional[str] = None   # 실패 사유
+    results: List[TestCaseResult] = []   # 각 테스트케이스 상세 결과
+    submitted_at: Optional[str] = None

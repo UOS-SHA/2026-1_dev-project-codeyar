@@ -1,0 +1,11 @@
+nohup: ignoring input
+INFO:     Started server process [10093]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+INFO:     127.0.0.1:42958 - "POST /api/v1/auth/register HTTP/1.1" 201 Created
+INFO:     127.0.0.1:46414 - "POST /api/v1/auth/login HTTP/1.1" 200 OK
+INFO:     127.0.0.1:35868 - "POST /api/v1/submissions/ HTTP/1.1" 202 Accepted
+INFO:     127.0.0.1:55610 - "GET /api/v1/submissions/fb935a67-4e61-41cd-888c-79ef6056607b HTTP/1.1" 200 OK
+INFO:     127.0.0.1:36214 - "POST /api/v1/submissions/ HTTP/1.1" 202 Accepted
+INFO:     127.0.0.1:56182 - "GET /api/v1/submissions/381ee3be-5ee6-4333-bd0c-2a9eb10bbc8c HTTP/1.1" 200 OK
