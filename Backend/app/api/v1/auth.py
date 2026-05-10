@@ -84,3 +84,34 @@ def login(request: LoginRequest, db: Session = Depends(get_db)):
 
     token = create_access_token(user.id)
     return LoginResponse(access_token=token)
+
+# ─── 학교 등록 API (연습용) ──────────────────────────────────
+
+class SchoolCreateRequest(BaseModel):
+    id: str = Field(..., description="학교 ID (예: UOS)")
+    name: str = Field(..., description="학교 이름 (예: 서울시립대학교)")
+    code: str = Field(..., description="학교 코드 (예: UOS)")
+
+@router.post("/schools", status_code=201)
+def create_school(request: SchoolCreateRequest, db: Session = Depends(get_db)):
+    # 1. 이미 존재하는 학교인지 DB 조회
+    existing = db.query(School).filter(School.id == request.id).first()
+    if existing:
+        raise HTTPException(status_code=400, detail="이미 등록된 학교 ID입니다.")
+
+    # 2. 새로운 학교 객체 생성 및 DB 저장
+    new_school = School(
+        id=request.id,
+        name=request.name,
+        code=request.code
+    )
+    db.add(new_school) # DB에 추가 대기
+    db.commit()        # 실제 DB(SQLite)에 반영
+    db.refresh(new_school)
+    
+    return {"message": "학교 등록 성공!", "school": new_school}
+
+@router.get("/schools") #DB 조회 함수
+def get_all_schools(db: Session = Depends(get_db)):
+    schools = db.query(School).all() # DB의 모든 학교 데이터를 가져와라!
+    return schools
