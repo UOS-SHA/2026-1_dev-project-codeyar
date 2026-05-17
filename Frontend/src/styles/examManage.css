@@ -1,0 +1,95 @@
+.exam-manage-page {
+    min-height: 100vh;
+
+    background-color: #f5f5f5;
+}
+
+/* 상단 */
+
+.manage-hero {
+    height: 320px;
+
+    background-color: #70798b;
+
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+
+    color: white;
+}
+
+.manage-title {
+    margin: 0;
+
+    font-size: 56px;
+    font-weight: 700;
+}
+
+.manage-subtitle {
+    margin-top: 14px;
+
+    font-size: 28px;
+}
+
+/* 카드 영역 */
+
+.manage-content {
+    width: 1100px;
+
+    margin: 0 auto;
+
+    padding: 60px 0;
+}
+
+.manage-card {
+    background-color: white;
+
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+
+    padding: 24px;
+}
+
+.manage-card h2 {
+    margin-top: 0;
+
+    font-size: 48px;
+}
+
+.manage-card p {
+    font-size: 28px;
+
+    margin-bottom: 50px;
+}
+
+/* 버튼 */
+
+.manage-button-group {
+    display: flex;
+    flex-direction: column;
+
+    gap: 24px;
+}
+
+.manage-button {
+    width: 180px;
+    height: 56px;
+
+    border: none;
+    border-radius: 40px;
+
+    background-color: #70798b;
+    color: white;
+
+    font-size: 22px;
+    font-weight: 500;
+
+    cursor: pointer;
+
+    transition: 0.2s;
+}
+
+.manage-button:hover {
+    background-color: #5f6778;
+}
