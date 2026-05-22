@@ -38,6 +38,44 @@ pip install -r requirements.txt
 
 ---
 
+## Judge0 제출 테스트 흐름
+
+현재 제출 API는 학생이 `problem_id`와 `code`만 보냅니다. `language_id`, `time_limit`, `memory_limit`, `test_cases`, `ast_conditions`는 DB의 `Problem`에서 읽습니다.
+
+```bash
+cp .env.example .env
+uvicorn app.main:app --reload
+```
+
+다른 터미널에서 아래 스모크 테스트를 실행합니다.
+
+```bash
+python test_request.py
+```
+
+`test_request.py`는 학교/교수/학생 계정을 준비하고, 문제 생성 API가 아직 없는 현재 단계에서는 SQLite DB에 Judge0 테스트용 문제를 직접 seed한 뒤 학생 JWT로 제출합니다. DB 담당자가 시험/문제 생성 API를 완성하면 `CODEYAR_PROBLEM_ID` 환경변수로 실제 문제 ID를 넘겨 같은 제출 흐름을 검증할 수 있습니다.
+
+```bash
+CODEYAR_PROBLEM_ID=<problem-id> python test_request.py
+```
+
+Judge0 설정은 `.env`에서 고릅니다.
+
+```txt
+RapidAPI:     JUDGE0_USE_RAPIDAPI=true
+Self-hosted:  JUDGE0_USE_RAPIDAPI=false, JUDGE0_API_URL=http://localhost:2358
+```
+
+상태 확인 API:
+
+```txt
+GET /api/v1/submissions/judge0/health
+```
+
+`Problem.memory_limit`은 MB 단위로 저장하고, Judge0 요청에서는 공식 API 단위인 KB로 변환해서 전송합니다.
+
+---
+
 ## 🛠 관리자 및 프로세스 기록
 
 Judge0와 통신하기 위한 고민, 설정 과정의 트러블슈팅 등은 세부 파일로 기록되어 있습니다. 구조나 동작 과정이 궁금하시다면 아래 파일을 참고해 주세요:
