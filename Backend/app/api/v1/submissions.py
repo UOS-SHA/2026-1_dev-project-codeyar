@@ -135,7 +135,7 @@ def get_submission(
     results = []
     if submission.result_json:
         try:
-            results = [TestCaseResult(**r) for r in json.loads(submission.result_json)]
+            resuls = [TestCaseResult(**r) for r in json.loads(submission.result_json)]
         except (json.JSONDecodeError, TypeError):
             results = []
 

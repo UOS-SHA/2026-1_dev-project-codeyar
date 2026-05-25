@@ -8,6 +8,7 @@ from app.db.session import get_db
 from app.core.security import hash_password, verify_password, create_access_token
 from app.models.user import User
 from app.models.school import School
+from app.core.dependencies import get_current_user
 
 router = APIRouter()
 
@@ -84,6 +85,19 @@ def login(request: LoginRequest, db: Session = Depends(get_db)):
 
     token = create_access_token(user.id)
     return LoginResponse(access_token=token)
+
+@router.get("/me")
+def get_me(current_user: User = Depends(get_current_user)):
+    """
+    현재 로그인한 사용자의 정보를 반환하는 엔드포인트입니다.
+    프론트엔드에서 토큰을 보냈을 때, 이 사람이 student인지 professor인지 구별하는 데 사용됩니다.
+    """
+    return {
+        "id": current_user.id,
+        "username": current_user.username,
+        "role": current_user.role,
+        "school_id": current_user.school_id
+    }
 
 # ─── 학교 등록 API (연습용) ──────────────────────────────────
 
