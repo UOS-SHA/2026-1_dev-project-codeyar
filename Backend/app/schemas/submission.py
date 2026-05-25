@@ -33,5 +33,16 @@ class SubmissionStatusResponse(BaseModel):
     status: str                          # "Pending" / "Completed" / "Timeout" / "Error" / "AST Fail"
     passed: Optional[bool] = None        # True=전체 통과, False=실패, None=채점 중
     error_reason: Optional[str] = None   # 실패 사유
-    results: List[TestCaseResult] = []   # 각 테스트케이스 상세 결과
+    results: List[TestCaseResult] = Field(default_factory=list)   # 각 테스트케이스 상세 결과
+    total_count: int = 0
+    passed_count: int = 0
+    score: Optional[int] = None
     submitted_at: Optional[str] = None
+
+
+class Judge0HealthResponse(BaseModel):
+    ok: bool
+    mode: str
+    api_url: str
+    status_code: Optional[int] = None
+    message: Optional[str] = None

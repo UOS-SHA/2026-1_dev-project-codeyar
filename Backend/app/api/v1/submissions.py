@@ -11,13 +11,31 @@ from app.models.problem import Problem
 from app.models.submission import Submission as SubmissionModel
 from app.schemas.submission import (
     SubmitRequest, SubmitResponse,
-    SubmissionStatusResponse, TestCaseResult,
+    SubmissionStatusResponse, TestCaseResult, Judge0HealthResponse,
 )
 from app.services.ast_checker import ASTConfigurationError, check_phase1_conditions
-from app.services.judge import Judge0Client, Judge0APIError, TestCaseInput
+from app.services.judge import (
+    Judge0Client,
+    Judge0APIError,
+    TestCaseInput,
+    SubmissionResult,
+    calculate_score,
+)
 
 router = APIRouter()
 judge_client = Judge0Client()
+
+
+def _load_json_list(raw: str | None, field_name: str) -> list:
+    try:
+        value = json.loads(raw or "[]")
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=400, detail=f"{field_name} JSON 형식이 올바르지 않습니다.")
+
+    if not isinstance(value, list):
+        raise HTTPException(status_code=400, detail=f"{field_name}은 JSON 배열이어야 합니다.")
+
+    return value
 
 
 @router.post("/", response_model=SubmitResponse, status_code=202)
@@ -39,10 +57,13 @@ async def submit_code(
         raise HTTPException(status_code=404, detail="존재하지 않는 문제 ID입니다.")
 
     # 2) DB에서 AST 조건, 테스트케이스 읽기
-    ast_conditions = json.loads(problem.ast_conditions or "[]")
-    global_ast_conditions = json.loads(problem.global_ast_conditions or "[]")
-    test_cases_raw = json.loads(problem.test_cases or "[]")
-    test_cases = [TestCaseInput(**tc) for tc in test_cases_raw]
+    ast_conditions = _load_json_list(problem.ast_conditions, "ast_conditions")
+    global_ast_conditions = _load_json_list(problem.global_ast_conditions, "global_ast_conditions")
+    test_cases_raw = _load_json_list(problem.test_cases, "test_cases")
+    try:
+        test_cases = [TestCaseInput(**tc) for tc in test_cases_raw]
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=f"test_cases 형식이 올바르지 않습니다: {e}")
 
     if not test_cases:
         raise HTTPException(status_code=400, detail="이 문제에 등록된 테스트케이스가 없습니다.")
@@ -87,6 +108,7 @@ async def submit_code(
             language_id=problem.language_id,
             test_cases=test_cases,
             time_limit=problem.time_limit,
+            memory_limit=problem.memory_limit,
         )
     except Judge0APIError as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -107,6 +129,14 @@ async def submit_code(
     background_tasks.add_task(judge_client.poll_and_update, tokens_str, submission_id)
 
     return SubmitResponse(submission_id=submission_id, status="Pending")
+
+
+@router.get("/judge0/health", response_model=Judge0HealthResponse)
+async def get_judge0_health():
+    """
+    프론트/백엔드 통합 전 Judge0 연결 상태를 확인하는 엔드포인트입니다.
+    """
+    return await judge_client.health_check()
 
 
 @router.get("/{submission_id}", response_model=SubmissionStatusResponse)
@@ -138,6 +168,8 @@ def get_submission(
             resuls = [TestCaseResult(**r) for r in json.loads(submission.result_json)]
         except (json.JSONDecodeError, TypeError):
             results = []
+    score_results = [SubmissionResult(**r.model_dump()) for r in results]
+    total_count, passed_count, score = calculate_score(score_results)
 
     return SubmissionStatusResponse(
         submission_id=submission.id,
@@ -148,5 +180,8 @@ def get_submission(
         passed=submission.passed,
         error_reason=submission.error_reason,
         results=results,
+        total_count=total_count,
+        passed_count=passed_count,
+        score=score,
         submitted_at=submission.submitted_at.isoformat() if submission.submitted_at else None,
     )
