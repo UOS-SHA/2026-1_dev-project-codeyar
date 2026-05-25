@@ -185,3 +185,25 @@ def get_submission(
         score=score,
         submitted_at=submission.submitted_at.isoformat() if submission.submitted_at else None,
     )
+
+# =============================================================
+# 🔗  내가 제출한 모든 채점 결과 목록 조회 API
+# =============================================================
+@router.get("/", summary="나의 전체 제출 목록 조회")
+def get_my_submissions(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    현재 로그인한 학생 본인이 제출한 모든 소스코드 채점 기록 목록을 가져옵니다.
+    """
+    # 내 user_id와 일치하는 제출 기록만 최신순(submitted_at DESC)으로 정렬하여 가져옴
+    submissions = (
+        db.query(SubmissionModel)
+        .filter(SubmissionModel.user_id == current_user.id)
+        .order_by(SubmissionModel.submitted_at.desc())
+        .all()
+    )
+    
+    # 리스트 형태로 바로 반환합니다.
+    return submissions

@@ -6,33 +6,42 @@ from typing import List
 from app.db.session import get_db
 from app.models.problem import Problem
 from app.models.exam import Exam
-from app.models.user import User  # 임시 권한 검사용 유저 조회
+from app.models.user import User
 from app.schemas.exam import ExamCreate, ExamResponse
 from app.schemas.problem import ProblemCreate, ProblemResponse
+
+# 🔐 권한 검사를 위해 로그인 유저 가져오는 함수 임포트
+from app.core.dependencies import get_current_user
 
 router = APIRouter()
 
 # ==========================================
-# 1. 시험(Exam) 생성 API
+# 1. 시험(Exam) 생성 API (교수 권한 검사 적용)
 # ==========================================
 @router.post("/exams", response_model=ExamResponse, status_code=status.HTTP_201_CREATED, summary="시험 생성 (교수용)")
-def create_exam(exam_data: ExamCreate, db: Session = Depends(get_db)):
+def create_exam(
+    exam_data: ExamCreate, 
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user) # 🔐 로그인한 유저 정보를 토큰에서 가져옴
+):
+    # ❌ 권한 검사: 교수가 아니면 차단
+    if current_user.role != "professor":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, 
+            detail="시험 생성 권한이 없습니다. 교수 계정으로 로그인하세요."
+        )
+
     # [중복 검사] 이미 존재하는 시험 ID 인지 확인
     existing_exam = db.query(Exam).filter(Exam.id == exam_data.id).first()
     if existing_exam:
         raise HTTPException(status_code=400, detail="이미 존재하는 시험 ID입니다.")
 
-    # [임시 권한/유저 검사] 일단 DB에 있는 'withacry1' 유저를 생성자로 지정합니다.
-    mock_professor = db.query(User).filter(User.username == "withacry1").first()
-    if not mock_professor:
-        raise HTTPException(status_code=404, detail="시험을 생성할 교수(withacry1) 계정이 DB에 없습니다. 회원가입을 먼저 진행해주세요.")
-
-    # DB 객체 생성
+    # DB 객체 생성 (실제 로그인한 교수 ID로 등록)
     new_exam = Exam(
         id=exam_data.id,
         title=exam_data.title,
         school_id=exam_data.school_id,
-        created_by=mock_professor.id, # 조회한 진짜 UUID 주입
+        created_by=current_user.id, # 🔐 임시 ID 'withacry1' 대신 진짜 로그인한 유저 UUID 주입!
         start_time=exam_data.start_time,
         end_time=exam_data.end_time
     )
@@ -44,10 +53,21 @@ def create_exam(exam_data: ExamCreate, db: Session = Depends(get_db)):
 
 
 # ==========================================
-# 2. 문제(Problem) 생성 API
+# 2. 문제(Problem) 생성 API (교수 권한 검사 적용)
 # ==========================================
 @router.post("/", response_model=ProblemResponse, status_code=status.HTTP_201_CREATED, summary="문제 생성 (교수용)")
-def create_problem(prob_data: ProblemCreate, db: Session = Depends(get_db)):
+def create_problem(
+    prob_data: ProblemCreate, 
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user) # 🔐 로그인한 유저 정보를 토큰에서 가져옴
+):
+    # ❌ 권한 검사: 교수가 아니면 차단
+    if current_user.role != "professor":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, 
+            detail="문제 생성 권한이 없습니다. 교수 계정으로 로그인하세요."
+        )
+
     # [중복 검사] 이미 존재하는 문제 ID 인지 확인
     existing_prob = db.query(Problem).filter(Problem.id == prob_data.id).first()
     if existing_prob:
@@ -58,7 +78,7 @@ def create_problem(prob_data: ProblemCreate, db: Session = Depends(get_db)):
     if not target_exam:
         raise HTTPException(status_code=404, detail=f"입력하신 시험 ID({prob_data.exam_id})가 존재하지 않습니다.")
 
-    # JSON 데이터 문자열(Text)로 직렬화 변환 (파이썬 list -> JSON string)
+    # JSON 데이터 문자열(Text)로 직렬화 변환
     ast_str = json.dumps(prob_data.ast_conditions)
     global_ast_str = json.dumps(prob_data.global_ast_conditions)
     test_cases_str = json.dumps(prob_data.test_cases)
