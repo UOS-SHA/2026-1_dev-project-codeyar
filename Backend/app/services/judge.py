@@ -1,7 +1,7 @@
 import base64
 import json
 from collections import Counter
-from typing import Any, List
+from typing import Any, Dict, List, Optional, Tuple
 
 import httpx
 from pydantic import BaseModel
@@ -37,7 +37,7 @@ class Judge0APIError(Exception):
     pass
 
 
-_http_client: httpx.AsyncClient | None = None
+_http_client: Optional[httpx.AsyncClient] = None
 
 
 def _get_http_client() -> httpx.AsyncClient:
@@ -48,7 +48,7 @@ def _get_http_client() -> httpx.AsyncClient:
     return _http_client
 
 
-def _determine_result(results: List[SubmissionResult]) -> tuple[bool, str | None]:
+def _determine_result(results: List[SubmissionResult]) -> Tuple[bool, Optional[str]]:
     """
     채점 결과를 분석하여 (passed, error_reason) 튜플을 반환합니다.
     - 전체 Accepted → (True, None)
@@ -66,7 +66,7 @@ def _determine_result(results: List[SubmissionResult]) -> tuple[bool, str | None
     return False, f"{len(failed)}/{total} 테스트케이스 실패 ({top_reason})"
 
 
-def calculate_score(results: List[SubmissionResult]) -> tuple[int, int, int | None]:
+def calculate_score(results: List[SubmissionResult]) -> Tuple[int, int, Optional[int]]:
     """MVP 점수 정책: 전체 통과 100점, 하나라도 실패하면 0점."""
     if not results:
         return 0, 0, None
@@ -83,7 +83,7 @@ class Judge0Client:
         self.headers = self._build_headers()
         self.client = _get_http_client()
 
-    def _build_headers(self) -> dict[str, str]:
+    def _build_headers(self) -> Dict[str, str]:
         headers = {"Content-Type": "application/json"}
         if not JUDGE0_API_KEY:
             return headers
@@ -96,7 +96,7 @@ class Judge0Client:
 
         return headers
 
-    def _memory_mb_to_kb(self, memory_limit_mb: int | None) -> int | None:
+    def _memory_mb_to_kb(self, memory_limit_mb: Optional[int]) -> Optional[int]:
         if memory_limit_mb is None:
             return None
         return max(int(memory_limit_mb), 1) * MEMORY_MB_TO_KB
@@ -115,7 +115,7 @@ class Judge0Client:
         except httpx.RequestError:
             return False
 
-    async def health_check(self) -> dict[str, Any]:
+    async def health_check(self) -> Dict[str, Any]:
         """
         Judge0 서버 연결 상태를 확인합니다.
         /languages는 RapidAPI와 self-hosted Judge0 CE에서 모두 사용할 수 있어 health check로 적합합니다.
@@ -157,7 +157,7 @@ class Judge0Client:
         language_id: int,
         test_cases: List[TestCaseInput],
         time_limit: float = 2.0,
-        memory_limit: int | None = None,
+        memory_limit: Optional[int] = None,
     ) -> str:
         """
         코드와 입출력을 Base64로 인코딩한 뒤, Batch Queue에 삽입하고 즉시 tokens 문자열만 리턴합니다.

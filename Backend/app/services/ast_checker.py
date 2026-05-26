@@ -47,15 +47,16 @@ class CodeAnalyzer(ast.NodeVisitor):
         self.functions: Dict[str, FunctionInfo] = {}
         self.classes: Dict[str, Set[str]] = {}
         self.imports: Set[str] = set()
+        self.import_aliases: Dict[str, str] = {}
         self.calls: Set[str] = set()
         self.has_for_loop = False
         self.has_while_loop = False
-        self._class_stack: List[str] = []
+        self._class_stack: List[Tuple[str, int]] = []
         self._function_stack: List[str] = []
 
     def visit_ClassDef(self, node: ast.ClassDef) -> None:
         self.classes.setdefault(node.name, set())
-        self._class_stack.append(node.name)
+        self._class_stack.append((node.name, len(self._function_stack)))
         self.generic_visit(node)
         self._class_stack.pop()
 
@@ -75,14 +76,23 @@ class CodeAnalyzer(ast.NodeVisitor):
         info = FunctionInfo(name=node.name, param_count=param_count)
         self.functions.setdefault(node.name, info)
 
-        if self._class_stack:
-            self.classes.setdefault(self._class_stack[-1], set()).add(node.name)
+        if self._class_stack and len(self._function_stack) == self._class_stack[-1][1]:
+            class_name = self._class_stack[-1][0]
+            self.classes.setdefault(class_name, set()).add(node.name)
 
         self._function_stack.append(node.name)
         self.generic_visit(node)
         self._function_stack.pop()
 
     def visit_For(self, node: ast.For) -> None:
+        self.has_for_loop = True
+        self.generic_visit(node)
+
+    def visit_AsyncFor(self, node: ast.AsyncFor) -> None:
+        self.has_for_loop = True
+        self.generic_visit(node)
+
+    def visit_comprehension(self, node: ast.comprehension) -> None:
         self.has_for_loop = True
         self.generic_visit(node)
 
@@ -93,17 +103,27 @@ class CodeAnalyzer(ast.NodeVisitor):
     def visit_Import(self, node: ast.Import) -> None:
         for alias in node.names:
             self._record_import(alias.name)
+            bound_name = alias.asname or alias.name.split(".", 1)[0]
+            target_name = alias.name if alias.asname else alias.name.split(".", 1)[0]
+            self.import_aliases[bound_name] = target_name
         self.generic_visit(node)
 
     def visit_ImportFrom(self, node: ast.ImportFrom) -> None:
         if node.module:
             self._record_import(node.module)
+            for alias in node.names:
+                if alias.name == "*":
+                    continue
+                bound_name = alias.asname or alias.name
+                self.import_aliases[bound_name] = f"{node.module}.{alias.name}"
         self.generic_visit(node)
 
     def visit_Call(self, node: ast.Call) -> None:
         call_name = _get_call_name(node.func)
         if call_name:
             self.calls.add(call_name)
+            resolved_name = self._resolve_call_alias(call_name)
+            self.calls.add(resolved_name)
             if self._function_stack and _is_direct_recursion(call_name, self._function_stack[-1]):
                 self.functions[self._function_stack[-1]].has_direct_recursion = True
         self.generic_visit(node)
@@ -114,6 +134,16 @@ class CodeAnalyzer(ast.NodeVisitor):
             parts = module_name.split(".")
             for index in range(1, len(parts)):
                 self.imports.add(".".join(parts[:index]))
+
+    def _resolve_call_alias(self, call_name: str) -> str:
+        parts = call_name.split(".")
+        root = parts[0]
+        resolved_root = self.import_aliases.get(root)
+        if not resolved_root:
+            return call_name
+        if len(parts) == 1:
+            return resolved_root
+        return ".".join([resolved_root, *parts[1:]])
 
 
 def _get_call_name(node: ast.AST) -> Optional[str]:
@@ -157,9 +187,11 @@ def merge_conditions(
 ) -> List[Dict[str, Any]]:
     merged: Dict[Tuple[str, ...], Dict[str, Any]] = {}
     for condition in global_conditions or []:
-        merged[_condition_key(condition)] = dict(condition)
+        normalized = _normalize_condition(condition)
+        merged[_condition_key(normalized)] = normalized
     for condition in problem_conditions or []:
-        merged[_condition_key(condition)] = dict(condition)
+        normalized = _normalize_condition(condition)
+        merged[_condition_key(normalized)] = normalized
     return list(merged.values())
 
 
@@ -168,6 +200,10 @@ def check_phase1_conditions(
     problem_conditions: Optional[List[Dict[str, Any]]] = None,
     global_conditions: Optional[List[Dict[str, Any]]] = None,
 ) -> ASTCheckResult:
+    conditions = merge_conditions(global_conditions, problem_conditions)
+    if not conditions:
+        return ASTCheckResult(passed=True)
+
     try:
         tree = ast.parse(code)
     except SyntaxError as exc:
@@ -182,9 +218,7 @@ def check_phase1_conditions(
     analyzer = CodeAnalyzer()
     analyzer.visit(tree)
 
-    conditions = merge_conditions(global_conditions, problem_conditions)
-    for raw_condition in conditions:
-        condition = _normalize_condition(raw_condition)
+    for condition in conditions:
         passed = _evaluate_condition(analyzer, condition)
         if not passed:
             return ASTCheckResult(
@@ -196,8 +230,17 @@ def check_phase1_conditions(
     return ASTCheckResult(passed=True)
 
 
+def check_ast_conditions(code: str, conditions: Optional[List[Dict[str, Any]]] = None) -> Tuple[bool, str]:
+    """
+    Backward-compatible wrapper for the initial implementation plan.
+    Prefer check_phase1_conditions() when the caller needs failed_condition details.
+    """
+    result = check_phase1_conditions(code=code, problem_conditions=conditions)
+    return result.passed, result.message
+
+
 def _normalize_condition(condition: Condition) -> Dict[str, Any]:
-    normalized = dict(condition)
+    normalized = _translate_legacy_condition(condition)
     action = normalized.get("action")
     target = normalized.get("target")
 
@@ -206,26 +249,105 @@ def _normalize_condition(condition: Condition) -> Dict[str, Any]:
     if target not in {"function", "class", "method", "recursion", "loop", "call", "import"}:
         raise ASTConfigurationError(f"Phase 1에서 지원하지 않는 target입니다: {target}")
 
-    if target in {"function", "class"} and "name" not in normalized:
-        raise ASTConfigurationError(f"target='{target}'에는 'name'이 필요합니다")
-    if target == "method" and ("class_name" not in normalized or "name" not in normalized):
-        raise ASTConfigurationError("target='method'에는 'class_name'과 'name'이 필요합니다")
-    if target == "recursion" and "in_function" not in normalized:
-        raise ASTConfigurationError("target='recursion'에는 'in_function'이 필요합니다")
+    if target in {"function", "class"}:
+        _require_text_field(normalized, "name", target)
+    if target == "method":
+        _require_text_field(normalized, "class_name", target)
+        _require_text_field(normalized, "name", target)
+    if target == "recursion":
+        _require_text_field(normalized, "in_function", target)
+
+    if target == "function":
+        _validate_param_limit(normalized, "min_params")
+        _validate_param_limit(normalized, "max_params")
+        min_params = normalized.get("min_params")
+        max_params = normalized.get("max_params")
+        if min_params is not None and max_params is not None and min_params > max_params:
+            raise ASTConfigurationError("min_params는 max_params보다 클 수 없습니다")
     if target == "loop":
         normalized["kind"] = normalized.get("kind", "any")
         if normalized["kind"] not in {"for", "while", "any"}:
             raise ASTConfigurationError(f"지원하지 않는 loop kind입니다: {normalized['kind']}")
     if target == "call":
-        names = normalized.get("names")
-        if not isinstance(names, list) or not names:
-            raise ASTConfigurationError("target='call'에는 비어있지 않은 'names' 리스트가 필요합니다")
+        normalized["names"] = _validate_text_list(normalized.get("names"), "names", target)
     if target == "import":
-        modules = normalized.get("modules")
-        if not isinstance(modules, list) or not modules:
-            raise ASTConfigurationError("target='import'에는 비어있지 않은 'modules' 리스트가 필요합니다")
+        normalized["modules"] = _validate_text_list(normalized.get("modules"), "modules", target)
 
     return normalized
+
+
+def _translate_legacy_condition(condition: Condition) -> Dict[str, Any]:
+    normalized = dict(condition)
+    condition_type = normalized.pop("type", None)
+    if condition_type is None:
+        return normalized
+
+    if condition_type == "function_exists":
+        normalized["action"] = "require"
+        normalized["target"] = "function"
+        return normalized
+    if condition_type == "class_exists":
+        normalized["action"] = "require"
+        normalized["target"] = "class"
+        return normalized
+    if condition_type == "method_exists":
+        class_name = normalized.pop("class", None)
+        if class_name is not None:
+            normalized["class_name"] = class_name
+        normalized["action"] = "require"
+        normalized["target"] = "method"
+        return normalized
+    if condition_type == "recursive_call":
+        function_name = normalized.pop("function", None) or normalized.pop("name", None)
+        if function_name is not None:
+            normalized["in_function"] = function_name
+        normalized["action"] = "require"
+        normalized["target"] = "recursion"
+        return normalized
+    if condition_type == "forbidden_call":
+        normalized["action"] = "forbid"
+        normalized["target"] = "call"
+        return normalized
+    if condition_type == "required_call":
+        normalized["action"] = "require"
+        normalized["target"] = "call"
+        return normalized
+    if condition_type == "forbidden_import":
+        normalized["action"] = "forbid"
+        normalized["target"] = "import"
+        return normalized
+    if condition_type == "required_import":
+        normalized["action"] = "require"
+        normalized["target"] = "import"
+        return normalized
+
+    raise ASTConfigurationError(f"지원하지 않는 condition type입니다: {condition_type}")
+
+
+def _require_text_field(condition: Dict[str, Any], field_name: str, target: str) -> None:
+    value = condition.get(field_name)
+    if not isinstance(value, str) or not value:
+        if target == "method":
+            raise ASTConfigurationError("target='method'에는 'class_name'과 'name'이 필요합니다")
+        if target == "recursion":
+            raise ASTConfigurationError("target='recursion'에는 'in_function'이 필요합니다")
+        raise ASTConfigurationError(f"target='{target}'에는 'name'이 필요합니다")
+
+
+def _validate_param_limit(condition: Dict[str, Any], field_name: str) -> None:
+    if field_name not in condition:
+        return
+    value = condition[field_name]
+    if not isinstance(value, int) or isinstance(value, bool) or value < 0:
+        raise ASTConfigurationError(f"{field_name}은 0 이상의 정수여야 합니다")
+
+
+def _validate_text_list(value: Any, field_name: str, target: str) -> List[str]:
+    if not isinstance(value, list) or not value:
+        raise ASTConfigurationError(f"target='{target}'에는 비어있지 않은 '{field_name}' 리스트가 필요합니다")
+    if not all(isinstance(item, str) and item for item in value):
+        raise ASTConfigurationError(f"target='{target}'의 '{field_name}'에는 문자열만 사용할 수 있습니다")
+    return value
 
 
 def _evaluate_condition(analyzer: CodeAnalyzer, condition: Dict[str, Any]) -> bool:
@@ -286,11 +408,13 @@ def _match_any_name(expected_names: List[str], actual_names: Set[str]) -> bool:
 def _name_matches(expected: str, actual: str) -> bool:
     if expected == actual:
         return True
-    expected_tail = expected.split(".")[-1]
+
+    if "." in expected:
+        return actual.endswith(f".{expected}")
+
+    expected_tail = expected
     actual_tail = actual.split(".")[-1]
     if expected_tail == actual_tail:
-        return True
-    if actual.endswith(f".{expected}"):
         return True
     return False
 

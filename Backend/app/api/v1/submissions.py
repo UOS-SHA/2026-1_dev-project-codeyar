@@ -1,5 +1,6 @@
 import json
 import uuid
+from typing import Optional
 
 from fastapi import APIRouter, HTTPException, BackgroundTasks, Depends
 from sqlalchemy.orm import Session
@@ -26,7 +27,7 @@ router = APIRouter()
 judge_client = Judge0Client()
 
 
-def _load_json_list(raw: str | None, field_name: str) -> list:
+def _load_json_list(raw: Optional[str], field_name: str) -> list:
     try:
         value = json.loads(raw or "[]")
     except json.JSONDecodeError:
@@ -165,7 +166,7 @@ def get_submission(
     results = []
     if submission.result_json:
         try:
-            resuls = [TestCaseResult(**r) for r in json.loads(submission.result_json)]
+            results = [TestCaseResult(**r) for r in json.loads(submission.result_json)]
         except (json.JSONDecodeError, TypeError):
             results = []
     score_results = [SubmissionResult(**r.model_dump()) for r in results]
