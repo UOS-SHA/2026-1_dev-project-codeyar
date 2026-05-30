@@ -1,0 +1,75 @@
+.header {
+    height: 70px;
+
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+
+    padding: 0 24px;
+
+    border-bottom: 1px solid #e5e7eb;
+
+    background-color: white;
+}
+
+.header-left {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+}
+
+.logo-circle {
+    width: 28px;
+    height: 28px;
+
+    border-radius: 50%;
+
+    background-color: #d9d9d9;
+}
+
+.logo-text {
+    font-size: 24px;
+    font-weight: 700;
+
+    margin: 0;
+}
+
+.nav-item {
+    font-size: 16px;
+    color: #6b7280;
+
+    cursor: pointer;
+}
+
+.header-right {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.icon-button {
+    border: none;
+    background: none;
+
+    font-size: 20px;
+
+    cursor: pointer;
+}
+
+.user-name {
+    font-size: 15px;
+    color: #374151;
+}
+
+.logout-button {
+    border: none;
+
+    padding: 10px 18px;
+
+    border-radius: 8px;
+
+    background-color: #374151;
+    color: white;
+
+    cursor: pointer;
+}

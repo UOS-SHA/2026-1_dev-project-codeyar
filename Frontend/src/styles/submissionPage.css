@@ -1,0 +1,31 @@
+.submission-page {
+    min-height: 100vh;
+
+    background-color: #f5f5f5;
+}
+
+.submission-hero {
+    height: 520px;
+
+    background-color: #70798b;
+
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+
+    color: white;
+}
+
+.submission-title {
+    margin: 0;
+
+    font-size: 64px;
+    font-weight: 700;
+}
+
+.submission-subtitle {
+    margin-top: 18px;
+
+    font-size: 28px;
+}
